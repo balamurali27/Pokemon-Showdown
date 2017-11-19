@@ -25,6 +25,9 @@
 
 'use strict';
 
+const PLAYER_SYMBOL = '\u2606';
+const HOST_SYMBOL = '\u2605';
+
 const THROTTLE_DELAY = 600;
 const THROTTLE_BUFFER_LIMIT = 6;
 const THROTTLE_MULTILINE_WARN = 3;
@@ -759,14 +762,14 @@ class User {
 			if (user.namelocked) user.named = true;
 
 			Rooms.global.checkAutojoin(user);
-			if (Config.loginfilter) Config.loginfilter(user, this, userType);
+			Chat.loginfilter(user, this, userType);
 			return true;
 		}
 
 		// rename success
 		if (this.forceRename(name, registered)) {
 			Rooms.global.checkAutojoin(this);
-			if (Config.loginfilter) Config.loginfilter(this, null, userType);
+			Chat.loginfilter(this, null, userType);
 			return true;
 		}
 		return false;
@@ -1612,3 +1615,6 @@ Users.socketReceive = function (worker, workerid, socketid, message) {
 		Monitor.warn(`[slow] ${deltaTime}ms - ${user.name} <${connection.ip}>: ${roomId}|${message}`);
 	}
 };
+
+Users.PLAYER_SYMBOL = PLAYER_SYMBOL;
+Users.HOST_SYMBOL = HOST_SYMBOL;

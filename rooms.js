@@ -92,7 +92,6 @@ class BasicRoom {
 		this.filterStretching = false;
 		this.filterEmojis = false;
 		this.filterCaps = false;
-		this.reportJoins = Config.reportbattlejoins;
 		/** @type {Set<string>?} */
 		this.privacySetter = null;
 	}
@@ -278,6 +277,8 @@ class BasicRoom {
 		if (this.staffRoom && !user.isStaff && (!this.auth || (this.auth[user.userid] || ' ') === ' ')) return false;
 		if (user.userid in this.users) return true;
 		if (!this.modjoin) return true;
+		// users with a room rank can always join
+		if (this.auth && user.userid in this.auth) return true;
 		const userGroup = user.can('makeroom') ? user.group : this.getAuth(user);
 
 		const modjoinSetting = this.modjoin !== true ? this.modjoin : this.modchat;
@@ -487,53 +488,6 @@ class GlobalRoom extends BasicRoom {
 		/** @type {number} */
 		this.lastBattle = Number(lastBattle) || 0;
 
-		this.writeChatRoomData = (() => {
-			let writing = false;
-			let writePending = false;
-			return async () => {
-				if (writing) {
-					writePending = true;
-					return;
-				}
-				writing = true;
-
-				let data = JSON.stringify(this.chatRoomData)
-					.replace(/\{"title":/g, '\n{"title":')
-					.replace(/\]$/, '\n]');
-
-				await FS('config/chatrooms.json.0').write(data);
-				await FS('config/chatrooms.json.0').rename('config/chatrooms.json');
-				writing = false;
-				if (writePending) {
-					writePending = false;
-					setImmediate(() => this.writeChatRoomData());
-				}
-			};
-		})();
-		if (Config.nofswriting) this.writeChatRoomData = () => {};
-
-		this.writeNumRooms = (() => {
-			let writing = false;
-			let lastBattle = -1; // last lastBattle to be written to file
-			return async () => {
-				if (writing) return;
-
-				// batch writing lastbattle.txt for every 10 battles
-				if (lastBattle >= this.lastBattle) return;
-				lastBattle = this.lastBattle + 10;
-
-				let filename = 'logs/lastbattle.txt';
-				writing = true;
-				await FS(`${filename}.0`).write('' + lastBattle);
-				await FS(`${filename}.0`).rename(filename);
-				writing = false;
-				if (lastBattle < this.lastBattle) {
-					setImmediate(() => this.writeNumRooms());
-				}
-			};
-		})();
-		if (Config.nofswriting) this.writeNumRooms = () => {};
-
 		// init users
 		this.users = Object.create(null);
 		this.userCount = 0; // cache of `size(this.users)`
@@ -547,6 +501,20 @@ class GlobalRoom extends BasicRoom {
 
 		// Create writestream for modlog
 		this.modlogStream = FS('logs/modlog/modlog_global.txt').createAppendStream();
+	}
+
+	writeChatRoomData() {
+		FS('config/chatrooms.json').writeUpdate(() => (
+			JSON.stringify(this.chatRoomDataList)
+				.replace(/\{"title":/g, '\n{"title":')
+				.replace(/\]$/, '\n]')
+		));
+	}
+
+	writeNumRooms() {
+		FS('logs/lastbattle.txt').writeUpdate(() => (
+			`${this.lastBattle}`
+		), {throttle: 10 * 1000});
 	}
 
 	reportUserStats() {
@@ -627,7 +595,7 @@ class GlobalRoom extends BasicRoom {
 	/**
 	 * @param {string} filter "formatfilter, elofilter"
 	 */
-	getRoomList(filter) {
+	getBattles(filter) {
 		let rooms = /** @type {GameRoom[]} */ ([]);
 		let skipCount = 0;
 		const [formatFilter, eloFilterString] = filter.split(',');
@@ -636,10 +604,10 @@ class GlobalRoom extends BasicRoom {
 			skipCount = this.battleCount - 150;
 		}
 		for (const room of Rooms.rooms.values()) {
-			if (!room || !room.active || room.isPrivate) return;
-			if (formatFilter && formatFilter !== room.format) return;
-			if (eloFilter && (!room.rated || room.rated < eloFilter)) return;
-			if (skipCount && skipCount--) return;
+			if (!room || !room.active || room.isPrivate) continue;
+			if (formatFilter && formatFilter !== room.format) continue;
+			if (eloFilter && (!room.rated || room.rated < eloFilter)) continue;
+			if (skipCount && skipCount--) continue;
 
 			rooms.push(room);
 		}
@@ -1257,7 +1225,6 @@ class ChatRoom extends BasicRoom {
 	 */
 	constructor(roomid, title, options = {}) {
 		super(roomid, title);
-		if (!this.isPersonal) this.chatRoomData = options;
 
 		this.logTimes = true;
 		this.logFile = null;
@@ -1276,6 +1243,7 @@ class ChatRoom extends BasicRoom {
 		this.staffMessage = '';
 		this.autojoin = false;
 		this.staffAutojoin = /** @type {string | boolean} */ (false);
+		this.chatRoomData = (options.isPersonal ? null : options);
 		Object.assign(this, options);
 		if (this.auth) Object.setPrototypeOf(this.auth, null);
 

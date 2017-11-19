@@ -17,8 +17,24 @@ const Pokemon = require('./pokemon');
  *
  * @typedef {Object} FaintedPokemon
  * @property {Pokemon} target
- * @property {Pokemon} source
- * @property {Effect} effect
+ * @property {Pokemon?} source
+ * @property {Effect?} effect
+ */
+
+/**
+ * An object representing a single action that can be chosen.
+ *
+ * @typedef {Object} Action
+ * @property {string} choice - a choice
+ * @property {Pokemon} [pokemon] - the pokemon making the choice
+ * @property {number} [targetLoc] - location of the target, relative to pokemon's side
+ * @property {string} [move] - a move to use
+ * @property {Pokemon} [target] - the target of the choice
+ * @property {number} [index] - the chosen index in team preview
+ * @property {number} [priority] - priority of the chosen index
+ * @property {Side} [side] - the pokemon's side
+ * @property {?boolean} [mega] - true if megaing or ultra bursting
+ * @property {?boolean} [zmove] - true if zmoving
  */
 
 class Battle extends Dex.ModdedDex {
@@ -134,13 +150,13 @@ class Battle extends Dex.ModdedDex {
 
 	/**
 	 * @param {string | Effect} status
-	 * @param {Pokemon} [source]
-	 * @param {Effect} [sourceEffect]
+	 * @param {Pokemon?} [source]
+	 * @param {Effect?} [sourceEffect]
 	 */
-	setWeather(status, source, sourceEffect) {
+	setWeather(status, source = null, sourceEffect = null) {
 		status = this.getEffect(status);
-		if (sourceEffect === undefined && this.effect) sourceEffect = this.effect;
-		if (source === undefined && this.event && this.event.target) source = this.event.target;
+		if (!sourceEffect && this.effect) sourceEffect = this.effect;
+		if (!source && this.event && this.event.target) source = this.event.target;
 
 		if (this.weather === status.id) {
 			if (sourceEffect && sourceEffect.effectType === 'Ability') {
@@ -151,13 +167,13 @@ class Battle extends Dex.ModdedDex {
 				return false;
 			}
 		}
-		if (status.id) {
+		if (status.id && source) {
 			let result = this.runEvent('SetWeather', source, source, status);
 			if (!result) {
 				if (result === false) {
-					if (sourceEffect && sourceEffect.weather) {
+					if (source && sourceEffect && sourceEffect.weather) {
 						this.add('-fail', source, sourceEffect, '[from]: ' + this.weather);
-					} else if (sourceEffect && sourceEffect.effectType === 'Ability') {
+					} else if (source && sourceEffect && sourceEffect.effectType === 'Ability') {
 						this.add('-ability', source, sourceEffect, '[from] ' + this.weather, '[fail]');
 					}
 				}
@@ -216,13 +232,13 @@ class Battle extends Dex.ModdedDex {
 
 	/**
 	 * @param {string | Effect} status
-	 * @param {Pokemon} [source]
-	 * @param {Effect} [sourceEffect]
+	 * @param {Pokemon?} [source]
+	 * @param {Effect?} [sourceEffect]
 	 */
-	setTerrain(status, source, sourceEffect) {
+	setTerrain(status, source = null, sourceEffect = null) {
 		status = this.getEffect(status);
-		if (sourceEffect === undefined && this.effect) sourceEffect = this.effect;
-		if (source === undefined && this.event && this.event.target) source = this.event.target;
+		if (!sourceEffect && this.effect) sourceEffect = this.effect;
+		if (!source && this.event && this.event.target) source = this.event.target;
 
 		if (this.terrain === status.id) return false;
 		if (this.terrain && !status.id) {
@@ -291,10 +307,10 @@ class Battle extends Dex.ModdedDex {
 
 	/**
 	 * @param {string | Effect} status
-	 * @param {Pokemon} [source]
-	 * @param {Effect} [sourceEffect]
+	 * @param {Pokemon?} [source]
+	 * @param {Effect?} [sourceEffect]
 	 */
-	addPseudoWeather(status, source, sourceEffect) {
+	addPseudoWeather(status, source = null, sourceEffect = null) {
 		status = this.getEffect(status);
 		if (this.pseudoWeather[status.id]) {
 			if (!status.onRestart) return false;
@@ -519,7 +535,7 @@ class Battle extends Dex.ModdedDex {
 	 * @param {Effect} effect
 	 * @param {?AnyObject} effectData
 	 * @param {string | Pokemon | Side | Battle} target
-	 * @param {Pokemon | Effect} [source]
+	 * @param {Pokemon | Effect?} [source]
 	 * @param {?Effect} [sourceEffect]
 	 * @param {any} [relayVar]
 	 */
@@ -1722,12 +1738,12 @@ class Battle extends Dex.ModdedDex {
 	/**
 	 * @param {AnyObject} boost
 	 * @param {Pokemon} [target]
-	 * @param {Pokemon} [source]
-	 * @param {Effect} [effect]
+	 * @param {Pokemon?} [source]
+	 * @param {Effect?} [effect]
 	 * @param {boolean} [isSecondary]
 	 * @param {boolean} isSelf
 	 */
-	boost(boost, target, source, effect, isSecondary, isSelf) {
+	boost(boost, target, source = null, effect = null, isSecondary = false, isSelf = false) {
 		if (this.event) {
 			if (!target) target = this.event.target;
 			if (!source) source = this.event.source;
@@ -1791,11 +1807,11 @@ class Battle extends Dex.ModdedDex {
 	/**
 	 * @param {number} damage
 	 * @param {Pokemon} [target]
-	 * @param {Pokemon} [source]
-	 * @param {Effect} [effect]
+	 * @param {Pokemon?} [source]
+	 * @param {Effect?} [effect]
 	 * @param {boolean} [instafaint]
 	 */
-	damage(damage, target, source, effect, instafaint) {
+	damage(damage, target, source = null, effect = null, instafaint = false) {
 		if (this.event) {
 			if (!target) target = this.event.target;
 			if (!source) source = this.event.source;
@@ -1863,10 +1879,10 @@ class Battle extends Dex.ModdedDex {
 	/**
 	 * @param {number} damage
 	 * @param {Pokemon} [target]
-	 * @param {Pokemon} [source]
-	 * @param {Effect} [effect]
+	 * @param {Pokemon?} [source]
+	 * @param {Effect?} [effect]
 	 */
-	directDamage(damage, target, source, effect) {
+	directDamage(damage, target, source = null, effect = null) {
 		if (this.event) {
 			if (!target) target = this.event.target;
 			if (!source) source = this.event.source;
@@ -1877,7 +1893,7 @@ class Battle extends Dex.ModdedDex {
 		damage = this.clampIntRange(damage, 1);
 
 		damage = target.damage(damage, source, effect);
-		switch (effect.id) {
+		switch (effect && effect.id) {
 		case 'strugglerecoil':
 			this.add('-damage', target, target.getHealth, '[from] recoil');
 			break;
@@ -1895,10 +1911,10 @@ class Battle extends Dex.ModdedDex {
 	/**
 	 * @param {number} damage
 	 * @param {Pokemon} [target]
-	 * @param {Pokemon} [source]
-	 * @param {Effect | string} [effect]
+	 * @param {Pokemon?} [source]
+	 * @param {Effect | string?} [effect]
 	 */
-	heal(damage, target, source, effect) {
+	heal(damage, target, source = null, effect = null) {
 		if (this.event) {
 			if (!target) target = this.event.target;
 			if (!source) source = this.event.source;
@@ -2014,7 +2030,7 @@ class Battle extends Dex.ModdedDex {
 	 * @param {string | number | Move} move
 	 * @param {boolean} [suppressMessages]
 	 */
-	getDamage(pokemon, target, move, suppressMessages) {
+	getDamage(pokemon, target, move, suppressMessages = false) {
 		if (typeof move === 'string') move = this.getMove(move);
 
 		if (typeof move === 'number') {
@@ -2119,6 +2135,11 @@ class Battle extends Dex.ModdedDex {
 			defBoosts = 0;
 		}
 
+		if (move.useBestSourceOffensive) {
+			attackStat = attacker.getStat('atk', false, true) > attacker.getStat('spa', false, true) ? 'atk' : 'spa';
+			atkBoosts = attacker.boosts[attackStat];
+		}
+
 		if (move.useTargetOffensive) {
 			attack = defender.calculateStat(attackStat, atkBoosts);
 		} else {
@@ -2139,7 +2160,7 @@ class Battle extends Dex.ModdedDex {
 		let baseDamage = Math.floor(Math.floor(Math.floor(2 * level / 5 + 2) * basePower * attack / defense) / 50);
 
 		// Calculate damage modifiers separately (order differs between generations)
-		return this.modifyDamage(baseDamage, pokemon, target, move, suppressMessages);
+		return this.modifyDamage(baseDamage, pokemon, target, move, attackStat, suppressMessages);
 	}
 
 	/**
@@ -2147,9 +2168,10 @@ class Battle extends Dex.ModdedDex {
 	 * @param {Pokemon} pokemon
 	 * @param {Pokemon} target
 	 * @param {Move} move
+	 * @param {string} attackStat
 	 * @param {boolean} suppressMessages
 	 */
-	modifyDamage(baseDamage, pokemon, target, move, suppressMessages) {
+	modifyDamage(baseDamage, pokemon, target, move, attackStat, suppressMessages = false) {
 		if (!move.type) move.type = '???';
 		let type = move.type;
 
@@ -2202,7 +2224,7 @@ class Battle extends Dex.ModdedDex {
 
 		if (move.crit && !suppressMessages) this.add('-crit', target);
 
-		if (pokemon.status === 'brn' && move.category === 'Physical' && !pokemon.hasAbility('guts')) {
+		if (pokemon.status === 'brn' && attackStat === 'atk' && !pokemon.hasAbility('guts')) {
 			if (this.gen < 6 || move.id !== 'facade') {
 				baseDamage = this.modify(baseDamage, 0.5);
 			}
@@ -2220,6 +2242,7 @@ class Battle extends Dex.ModdedDex {
 		if (move.isZ && move.zBrokeProtect) {
 			baseDamage = this.modify(baseDamage, 0.25);
 			this.add('-message', target.name + " couldn't fully protect itself and got hurt! (placeholder)");
+			move.zBrokeProtect = false;
 		}
 
 		if (this.gen !== 5 && !Math.floor(baseDamage)) {
@@ -2377,7 +2400,7 @@ class Battle extends Dex.ModdedDex {
 	/**
 	 * @param {boolean} [lastFirst]
 	 */
-	faintMessages(lastFirst) {
+	faintMessages(lastFirst = false) {
 		if (this.ended) return;
 		if (!this.faintQueue.length) return false;
 		if (lastFirst) {
@@ -2394,6 +2417,7 @@ class Battle extends Dex.ModdedDex {
 				faintData.target.side.pokemonLeft--;
 				this.runEvent('Faint', faintData.target, faintData.source, faintData.effect);
 				this.singleEvent('End', this.getAbility(faintData.target.ability), faintData.target.abilityData, faintData.target);
+				faintData.target.clearVolatile();
 				faintData.target.fainted = true;
 				faintData.target.isActive = false;
 				faintData.target.isStarted = false;
@@ -2437,7 +2461,7 @@ class Battle extends Dex.ModdedDex {
 	 * @param {AnyObject} decision
 	 * @param {boolean} [midTurn]
 	 */
-	resolvePriority(decision, midTurn) {
+	resolvePriority(decision, midTurn = false) {
 		if (!decision) return;
 
 		if (!decision.side && decision.pokemon) decision.side = decision.pokemon.side;
@@ -2482,7 +2506,7 @@ class Battle extends Dex.ModdedDex {
 			}
 		}
 
-		let deferPriority = this.gen >= 7 && decision.mega && !decision.pokemon.template.isMega;
+		let deferPriority = this.gen >= 7 && decision.mega && decision.mega !== 'done';
 		if (decision.move) {
 			let target = null;
 
@@ -2537,7 +2561,7 @@ class Battle extends Dex.ModdedDex {
 	 * @param {AnyObject | AnyObject[]} decision
 	 * @param {boolean} [midTurn]
 	 */
-	insertQueue(decision, midTurn) {
+	insertQueue(decision, midTurn = false) {
 		if (Array.isArray(decision)) {
 			for (let i = 0; i < decision.length; i++) {
 				this.insertQueue(decision[i]);
@@ -2859,6 +2883,7 @@ class Battle extends Dex.ModdedDex {
 			const moveIndex = this.queue.findIndex(queuedDecision => queuedDecision.pokemon === decision.pokemon && queuedDecision.choice === 'move');
 			if (moveIndex >= 0) {
 				const moveDecision = this.queue.splice(moveIndex, 1)[0];
+				moveDecision.mega = 'done';
 				this.insertQueue(moveDecision, true);
 			}
 			return false;

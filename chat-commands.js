@@ -479,15 +479,9 @@ exports.commands = {
 		if (!targetUser) return this.errorReply(`The user "${targetUser.name}" was not found.`);
 
 		if (!targetRoom.checkModjoin(targetUser)) {
-			if (targetRoom.getAuth(targetUser) !== ' ') {
-				return this.errorReply(`The user "${targetUser.name}" does not have permission to join "${targetRoom.title}".`);
-			}
 			this.room = targetRoom;
 			this.parse(`/roomvoice ${targetUser.name}`);
 			if (!targetRoom.checkModjoin(targetUser)) {
-				if (targetRoom.getAuth(targetUser) !== ' ') {
-					return this.errorReply(`The user "${targetUser.name}" does not have permission to join "${targetRoom.title}".`);
-				}
 				return this.errorReply(`You do not have permission to invite people into this room.`);
 			}
 		}
@@ -1061,8 +1055,12 @@ exports.commands = {
 	roomaliashelp: [
 		"/roomalias - displays a list of all room aliases of the room the command was entered in.",
 		"/roomalias [alias] - adds the given room alias to the room the command was entered in. Requires: & ~",
+		"/removeroomalias [alias] - removes the given room alias of the room the command was entered in. Requires: & ~",
 	],
 
+	deleteroomalias: 'removeroomalias',
+	deroomalias: 'removeroomalias',
+	unroomalias: 'removeroomalias',
 	removeroomalias: function (target, room, user) {
 		if (!room.aliases) return this.errorReply("This room does not have any aliases.");
 		if (!this.can('makeroom')) return false;
@@ -1128,13 +1126,15 @@ exports.commands = {
 		if (!this.canTalk()) return;
 		if (!target) return this.parse('/help roompromote');
 
+		const force = target.startsWith('!!!');
+		if (force) target = target.slice(3);
 		target = this.splitTarget(target, true);
 		let targetUser = this.targetUser;
 		let userid = toId(this.targetUsername);
 		let name = targetUser ? targetUser.name : this.targetUsername;
 
 		if (!userid) return this.parse('/help roompromote');
-		if (!targetUser && !Users.isUsernameKnown(userid)) {
+		if (!targetUser && !Users.isUsernameKnown(userid) && !force) {
 			return this.errorReply(`User '${name}' is offline and unrecognized, and so can't be promoted.`);
 		}
 		if (targetUser && !targetUser.registered) {
@@ -1466,7 +1466,7 @@ exports.commands = {
 		if (!room.users[targetUser.userid]) {
 			return this.errorReply("User " + this.targetUsername + " is not in the room " + room.id + ".");
 		}
-		if (targetUser.joinRoom(targetRoom.id) === false) return this.errorReply("User " + targetUser.name + " could not be joined to room " + targetRoom.title + ". They could be banned from the room.");
+		if (!targetUser.joinRoom(targetRoom.id)) return this.errorReply("User " + targetUser.name + " could not be joined to room " + targetRoom.title + ". They could be banned from the room.");
 		this.addModCommand("" + targetUser.name + " was redirected to room " + targetRoom.title + " by " + user.name + ".");
 		targetUser.leaveRoom(room);
 	},
@@ -3190,7 +3190,7 @@ exports.commands = {
 		}
 		if (!this.can('joinbattle', null, room)) return;
 
-		room.auth[targetUser.userid] = '\u2606';
+		room.auth[targetUser.userid] = Users.PLAYER_SYMBOL;
 		this.addModCommand("" + name + " was promoted to Player by " + user.name + ".");
 	},
 	addplayerhelp: ["/addplayer [username] - Allow the specified user to join the battle as a player."],
@@ -3513,7 +3513,7 @@ exports.commands = {
 		} else if (cmd === 'roomlist') {
 			if (!trustable) return false;
 			connection.send('|queryresponse|roomlist|' + JSON.stringify({
-				rooms: Rooms.global.getRoomList(target),
+				rooms: Rooms.global.getBattles(target),
 			}));
 		} else if (cmd === 'rooms') {
 			if (!trustable) return false;
