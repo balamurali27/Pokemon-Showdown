@@ -1,1 +1,1 @@
-web: ./pokemon-showdown $PORT
+web: ./pokemon-showdown
