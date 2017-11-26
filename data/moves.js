@@ -9284,14 +9284,16 @@ exports.BattleMovedex = {
 		accuracy: true,
 		basePower: 200,
 		category: "Special",
-		desc: "Damage is calculated using the user's higher attacking stat, including stat stage changes. This move and its effects ignore the Abilities of other Pokemon.",
+		desc: "Damage is calculated using the user's higher attacking stat, including stat stage changes. If the Attack stat is used, this move becomes a Physical attack. This move and its effects ignore the Abilities of other Pokemon.",
 		shortDesc: "Uses user's best attacking stat. Ignores Abilities.",
 		id: "lightthatburnsthesky",
 		name: "Light That Burns the Sky",
 		pp: 1,
 		priority: 0,
 		flags: {},
-		useBestSourceOffensive: true,
+		onModifyMove: function (move, pokemon) {
+			if (pokemon.getStat('atk', false, true) > pokemon.getStat('spa', false, true)) move.category = 'Physical';
+		},
 		ignoreAbility: true,
 		isZ: "ultranecroziumz",
 		secondary: false,
@@ -10332,7 +10334,7 @@ exports.BattleMovedex = {
 		accuracy: 100,
 		basePower: 150,
 		category: "Special",
-		desc: "If this move is successful, the user loses 1/2 of its maximum HP, rounded up, unless the user has the Ability Magic Guard. This move is prevented from executing if any active Pokemon has the Ability Damp.",
+		desc: "Whether or not this move is successful, the user loses 1/2 of its maximum HP, rounded up, unless the user has the Ability Magic Guard. This move is prevented from executing and the user does not lose HP if any active Pokemon has the Ability Damp, if the user is affected by Powder, or Primordial Sea is in effect.",
 		shortDesc: "User loses 50% max HP. Hits adjacent Pokemon.",
 		id: "mindblown",
 		isViable: true,
@@ -10341,6 +10343,11 @@ exports.BattleMovedex = {
 		priority: 0,
 		flags: {protect: 1, mirror: 1},
 		mindBlownRecoil: true,
+		onAfterMove: function (pokemon, target, move) {
+			if (move.mindBlownRecoil && !move.multihit) {
+				this.damage(Math.round(pokemon.maxhp / 2), pokemon, pokemon, this.getEffect('Mind Blown'), true);
+			}
+		},
 		secondary: false,
 		target: "allAdjacent",
 		type: "Fire",
@@ -11694,15 +11701,18 @@ exports.BattleMovedex = {
 		accuracy: 100,
 		basePower: 100,
 		category: "Special",
-		desc: "Damage is calculated using the user's higher attacking stat, including stat stage changes.",
-		shortDesc: "Calculates damage with user's higher attack stat.",
+		desc: "Damage is calculated using the user's higher attacking stat, including stat stage changes. If the Attack stat is used, this move becomes a Physical attack. This move and its effects ignore the Abilities of other Pokemon.",
+		shortDesc: "Uses user's best attacking stat. Ignores Abilities.",
 		id: "photongeyser",
 		isViable: true,
 		name: "Photon Geyser",
 		pp: 5,
 		priority: 0,
 		flags: {protect: 1, mirror: 1},
-		useBestSourceOffensive: true,
+		onModifyMove: function (move, pokemon) {
+			if (pokemon.getStat('atk', false, true) > pokemon.getStat('spa', false, true)) move.category = 'Physical';
+		},
+		ignoreAbility: true,
 		secondary: false,
 		target: "normal",
 		type: "Psychic",
@@ -18685,9 +18695,14 @@ exports.BattleMovedex = {
 				this.add('-singleturn', source, 'Wide Guard');
 			},
 			onTryHitPriority: 4,
-			onTryHit: function (target, source, effect) {
+			onTryHit: function (target, source, move) {
+				// USUM bug
+				if (move.isZ) {
+					move.zBrokeProtect = true;
+					return;
+				}
 				// Wide Guard blocks all spread moves
-				if (effect && effect.target !== 'allAdjacent' && effect.target !== 'allAdjacentFoes') {
+				if (move && move.target !== 'allAdjacent' && move.target !== 'allAdjacentFoes') {
 					return;
 				}
 				this.add('-activate', target, 'move: Wide Guard');
