@@ -1,1 +1,1 @@
-web: node app.js 
+./pokemon-showdown
